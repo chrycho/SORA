@@ -330,7 +330,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
                       'chcolor', 'chord_delta', 'chord_geo', 'countries', 'cpoints', 'cscale', 'dpi', 'ercolor',
                       'error', 'fmt', 'hcolor', 'heights', 'labels', 'lncolor', 'mapsize', 'mapstyle', 'meridians',
                       'nameimg', 'nscale', 'offset', 'outcolor', 'parallels', 'path', 'pscale', 'ptcolor',
-                      'resolution', 'ring', 'rncolor', 'site_name', 'sites', 'sscale', 'states', 'zoom',
+                      'resolution', 'ring', 'rings', 'rncolor', 'site_name', 'sites', 'sscale', 'states', 'zoom',
                       'site_box_alpha', 'band']
     input_tests.check_kwargs(kwargs, allowed_kwargs=allowed_kwargs)
 
@@ -374,6 +374,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
     mapsize = kwargs.get('mapsize', [46.0, 38.0])*u.cm
     erro = kwargs.get('error', None)
     ring = kwargs.get('ring', None)
+    rings = kwargs.get('rings', None)
     atm = kwargs.get('atm', None)
     cpoints = kwargs.get('cpoints', 60)
     states = kwargs.get('states', True)
@@ -508,7 +509,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
         ptcolor = 'black'
         lncolor = 'blue'
         ercolor = 'blue'
-        rncolor = 'blue'
+        rncolor = 'm'
         atcolor = 'blue'
         outcolor = 'red'
         hcolor = 'black'
@@ -523,7 +524,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
         ptcolor = 'red'
         lncolor = 'blue'
         ercolor = 'red'
-        rncolor = 'black'
+        rncolor = 'm'
         atcolor = 'black'
         outcolor = 'red'
         hcolor = 'black'
@@ -637,7 +638,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
         if 'centerproj' not in kwargs:
             plt.plot(ax3[j].to(u.m).value, by3[j].to(u.m).value, '--', color=ercolor, clip_on=(not centert), zorder=-0.2)
 
-    # plots ring
+    # plots ring from user input - older version
     if ring is not None:
         rng = ring*u.km
         ax2 = ax - rng*np.sin(paplus)
@@ -657,6 +658,48 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
         j = np.where(lon1 > 1e+30)
         if 'centerproj' not in kwargs:
             plt.plot(ax3[j].to(u.m).value, by3[j].to(u.m).value, '--', color=rncolor, clip_on=(not centert), zorder=-0.2)
+
+    # plots rings from the Body object
+    if rings is not None:
+        ring_proj_radius = np.array([])
+
+        for obj_ring in rings:
+            P, B = obj_ring.get_ring_orientation(time=Time(data))
+
+            oblat = 1 - abs(np.sin(B).value)
+            theta = np.linspace(-np.pi, np.pi, 1800)
+            circle_x = obj_ring.radius.value * np.cos(theta)
+            circle_y = obj_ring.radius.value * abs(np.sin(B).value) * np.sin(theta)
+            
+            ellipse_y = -circle_x*np.sin((P.value - occs['posa'].value)*u.deg) + circle_y*np.cos((P.value - occs['posa'].value)*u.deg)
+            ellipse_x = circle_x*np.cos((P.value - occs['posa'].value)*u.deg) + circle_y*np.sin((P.value - occs['posa'].value)*u.deg)           
+            
+            proj_radius = ellipse_y.max()
+
+            if proj_radius < radius.value:
+                proj_radius = radius.value        
+
+            ring_proj_radius = np.append(ring_proj_radius, ellipse_x.max())
+
+            rng = proj_radius*u.km
+            ax2 = ax - rng*np.sin(paplus)
+            by2 = by - rng*np.cos(paplus)
+            lon1, lat1 = xy2latlon(ax2.to(u.m).value, by2.to(u.m).value, centers.lon.value, centers.lat.value, datas1)
+            j = np.where(lon1 < 1e+30)
+            axf.plot(lon1[j], lat1[j], ':', transform=ccrs.Geodetic(), color=rncolor)
+            j = np.where(lon1 > 1e+30)
+            if 'centerproj' not in kwargs:
+                plt.plot(ax2[j].to(u.m).value, by2[j].to(u.m).value, ':', color=rncolor, clip_on=(not centert), zorder=-0.2)
+
+            ax3 = ax + rng*np.sin(paplus)
+            by3 = by + rng*np.cos(paplus)
+            lon2, lat2 = xy2latlon(ax3.to(u.m).value, by3.to(u.m).value, centers.lon.value, centers.lat.value, datas1)
+            j = np.where(lon2 < 1e+30)
+            axf.plot(lon2[j], lat2[j], ':', transform=ccrs.Geodetic(), color=rncolor)
+            j = np.where(lon1 > 1e+30)
+            if 'centerproj' not in kwargs:
+                plt.plot(ax3[j].to(u.m).value, by3[j].to(u.m).value, ':', color=rncolor, clip_on=(not centert), zorder=-0.2)
+
 
     # plots atm
     if atm is not None:
@@ -755,15 +798,23 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
                      bbox={'facecolor': 'white', 'alpha': site_box_alpha, 'pad': 2, 'edgecolor':'none'})
 
     # Define the title and label of the output
-    title = ('Object        Diam   Tmax   dots <> ra_offset_dec\n'
-             '{:10s} {:4.0f} km  {:5.1f}s  {:02d} s <>{:+6.1f} {:+6.1f} \n'.
-             format(name, 2*radius.value, (2*radius/np.absolute(occs['vel'])).value,
-                    cpoints, off_ra.value, off_de.value))
+    if rings:
+        title = ('     Object      Diam    Tmax_body  Tmax_ring   dots  <>  ra_offset_dec\n'
+        '{:10s}   {:5.0f} km     {:5.1f} s  {:5.1f} s  {:4d} s  <>  {:+6.1f} {:+6.1f}\n'.format(name, 2 * radius.value, 
+        (2 * radius / np.absolute(occs['vel'])).value, (2 * ring_proj_radius.max() / np.absolute(occs['vel'])).value,
+        cpoints, off_ra.value, off_de.value)
+        )
+    else:
+        title = ('Object        Diam   Tmax   dots <> ra_offset_dec\n'
+        '{:10s} {:4.0f} km  {:5.1f} s  {:02d} s  <>  {:+6.1f} {:+6.1f} \n'.format(name, 2*radius.value, 
+        (2*radius/np.absolute(occs['vel'])).value, cpoints, off_ra.value, off_de.value))
+        
     labelx = ("\n year-m-d    h:m:s UT     ra__dec__J2000__candidate    C/A    P/A    vel   Delta   {}*  long\n"
               "{}  {} {} {:6.3f} {:6.2f} {:6.2f}  {:5.2f} {:5.1f}  {:3.0f}".
               format(band, data.iso, occs['stars'].ra.to_string(unit='hour', precision=4, pad=True, sep=' '),
                      occs['stars'].dec.to_string(unit='deg', precision=3, alwayssign=True, pad=True, sep=' '),
                      ca1.value, occs['posa'].value, occs['vel'].value, occs['dist'].value, occs['magG'], occs['longi']))
+
 
     # plots the map
     if labels:

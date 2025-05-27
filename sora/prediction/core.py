@@ -7,6 +7,7 @@ from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
 from sora.body import Body
+from sora.body.ring import Ring
 from sora.ephem.meta import BaseEphem
 from sora.star import Star
 from sora.config.decorators import deprecated_alias
@@ -296,8 +297,11 @@ def prediction(time_beg, time_end, body=None, ephem=None, mag_lim=None, catalogu
             except:
                 pass
 
+    if body is not None and hasattr(body, 'rings'):
+        rings = list(body.rings.values())
+
     meta = {'name': ephem.name or getattr(body, 'shortname', ''), 'time_beg': time_beg, 'time_end': time_end,
-            'maglim': mag_lim, 'max_ca': mindist, 'radius': radius.to(u.km).value,
+            'maglim': mag_lim, 'max_ca': mindist, 'radius': radius.to(u.km).value, 'rings': rings,
             'error_ra': ephem.error_ra.to(u.mas).value, 'error_dec': ephem.error_dec.to(u.mas).value,
             'ephem': ephem.meta['kernels'], 'catalogue': catalog.name}
     if not occs:

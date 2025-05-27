@@ -102,6 +102,9 @@ class Occultation:
         except ValueError:
             self.star_diam = 0*u.km
 
+        if hasattr(self.body, 'rings'):
+            rings = self.body.rings.values()
+
         meta = {
             'name': self.body.name, 'radius': self.body.radius.to(u.km).value,
             'error_ra': self.body.ephem.error_ra.to(u.mas).value, 'error_dec': self.body.ephem.error_dec.to(u.mas).value}
@@ -587,8 +590,11 @@ class Occultation:
             off_ra = np.arctan2(off_ra, self.dist)
             off_dec = np.arctan2(off_dec, self.dist)
             kwargs['offset'] = [off_ra, off_dec]
+        if 'rings' not in kwargs:
+            kwargs['rings'] = list(self.body.rings.values())
+        for row in self.predict:
+            row.meta['rings'] = kwargs['rings']
         self.predict.plot_occ_map(**kwargs)
-
     plot_occ_map.__doc__ = PredictionTable.plot_occ_map.__doc__
 
     def to_log(self, namefile=None):

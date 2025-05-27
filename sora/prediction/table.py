@@ -177,15 +177,29 @@ class PredictRow(Row):
         from .occmap import plot_occ_map
 
         radius = kwargs.pop('radius', self.meta['radius'])
-        mag = 0
-        for col in self.colnames:
-            if self.columns[col].unit == u.mag:
-                mag = self[col]
-                break
-        mag20 = mag + 2.5 * np.log10(np.absolute(self['Vel']) / 20.0)
-        plot_occ_map(self.meta['name'], radius, coord=self['ICRS Star Coord at Epoch'], time=self['Epoch'],
-                     ca=float(self['C/A']), pa=float(self['P/A']), vel=float(self['Vel']), dist=float(self['Dist']),
-                     mag=mag20, band=col, longi=float(self['long']), **kwargs)
+        rings = kwargs.pop('rings', self.meta['rings'])
+        
+        if rings:          
+            mag = 0
+            for col in self.colnames:
+                if self.columns[col].unit == u.mag:
+                    mag = self[col]
+                    break
+            mag20 = mag + 2.5 * np.log10(np.absolute(self['Vel']) / 20.0)
+            plot_occ_map(self.meta['name'], radius, coord=self['ICRS Star Coord at Epoch'], time=self['Epoch'],
+                         ca=float(self['C/A']), pa=float(self['P/A']), vel=float(self['Vel']), dist=float(self['Dist']),
+                         mag=mag20, band=col, longi=float(self['long']), rings=rings, **kwargs)
+
+        else:            
+            mag = 0
+            for col in self.colnames:
+                if self.columns[col].unit == u.mag:
+                    mag = self[col]
+                    break
+            mag20 = mag + 2.5 * np.log10(np.absolute(self['Vel']) / 20.0)
+            plot_occ_map(self.meta['name'], radius, coord=self['ICRS Star Coord at Epoch'], time=self['Epoch'],
+                         ca=float(self['C/A']), pa=float(self['P/A']), vel=float(self['Vel']), dist=float(self['Dist']),
+                         mag=mag20, band=col, longi=float(self['long']), rings=None, **kwargs)
 
 
 class PredictionTable(Table):
