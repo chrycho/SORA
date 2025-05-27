@@ -154,6 +154,8 @@ class Body(BaseBody):
                                                      reference="")
         if 'ephem' not in kwargs:
             self.ephem = 'horizons'
+            
+        self.rings = {}
 
     def __from_sbdb(self, name):
         """Searches the object in the SBDB and defines its physical parameters.
@@ -497,6 +499,31 @@ class Body(BaseBody):
         else:
             self.shape.plot(**orientation, center_f=center_f, center_g=center_g, ax=ax, plot_pole=plot_pole, **kwargs)
 
+    def add_ring(self, **kwargs):
+        from sora.body.ring import Ring
+        ring = Ring(ephem=self.ephem, **kwargs)
+        ring_id = kwargs.get('ring_id')    
+        #if ring_id:
+        #    self.rings[ring_id] = ring
+        #    setattr(self, ring_id, ring)
+        #else:
+            #print("Error: ring_id is required to add a ring.")
+            
+        if not ring_id in self.rings:
+            self.rings[ring_id] = ring
+            setattr(self, ring_id, ring)
+        else:
+            raise ValueError(f"{ring_id} was already instantiated.")
+        
+            
+    def remove_ring(self, ring_id):
+        if ring_id in self.rings:
+            del self.rings[ring_id]
+            delattr(self, ring_id)  
+                
+    def list_rings(self):
+        return [str(ring) for ring in self.rings.values()]    
+        
     def __str__(self):
         from .values import smass, tholen
         out = ['#' * 79 + '\n{:^79s}\n'.format(self.name) + '#' * 79 + '\n',
@@ -533,4 +560,9 @@ class Body(BaseBody):
             out.append('\n' + self.shape.__str__() + '\n')
         if hasattr(self, 'ephem'):
             out.append('\n' + self.ephem.__str__() + '\n')
+        if self.rings:
+            out.append('-' * 13 + ' Rings ' + '-' * 13 + '\n')
+            for ring_id, ring in self.rings.items():
+                out.append(f"\n{ring_id} - Ring parameters:\n{ring}\n")
+         
         return ''.join(out)
