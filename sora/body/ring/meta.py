@@ -55,7 +55,7 @@ class BaseRing():
             normal_optical_depth = value
             normal_optical_depth.name = "Normal optical depth"
         else:
-            normal_optical_depth = PhysicalData('Normal opacity', value)
+            normal_optical_depth = PhysicalData('Normal optical depth', value)
             
         if normal_optical_depth < 0:
             raise ValueError("Normal optical depth must be positive")
@@ -93,3 +93,35 @@ class BaseRing():
             raise ValueError("Eccentricity must be betwenn 0 and 1")
             
         self._eccentricity = eccentricity
+
+    @property
+    def equivalent_depth(self):
+        return self._equivalent_depth    
+    @equivalent_depth.setter
+    def equivalent_depth(self, value):
+        if isinstance(value, PhysicalData):
+            equivalent_depth = value
+            equivalent_depth.name = "Equivalent depth"
+        else:
+            equivalent_depth = PhysicalData('Equivalent depth', value)
+            
+        if equivalent_depth < 0:
+            raise ValueError("Equivalent depth must be positive")
+            
+        self._equivalent_depth = equivalent_depth
+
+    @property
+    def equivalent_width(self):
+        return self._equivalent_width 
+    @equivalent_width.setter
+    def equivalent_width(self, value):
+        if isinstance(value, PhysicalData):
+            equivalent_width = value
+            equivalent_width.name = "Equivalent width"
+        else:
+            equivalent_width = PhysicalData('Equivalent width', value)
+            
+        if equivalent_width < 0:
+            raise ValueError("Equivalent width must be positive")
+            
+        self._equivalent_width = equivalent_width

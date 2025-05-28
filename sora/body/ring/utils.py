@@ -2,7 +2,9 @@ import astropy.units as u
 import numpy as np
 
 def __calc_coef_projecao(self):
-    """ Private function that calculate the projection coeficients """ 
+    """ Private function that calculate the projection coeficients 
+    """ 
+
     east    = np.array([-np.sin(self.ephem.ra), np.cos(self.ephem.ra), 0])
     north   = np.array([-np.cos(self.ephem.ra)*np.sin(self.ephem.dec), -np.sin(self.ephem.ra)*np.sin(self.ephem.dec), np.cos(self.ephem.dec)]) #vector North
     target  = np.array([np.cos(self.ephem.ra)*np.cos(self.ephem.dec), np.sin(self.ephem.ra)*np.cos(self.ephem.dec), np.sin(self.ephem.dec)])
@@ -26,15 +28,22 @@ def __calc_coef_projecao(self):
 def to_ring_plane(self, ksi, eta, ksi_0=0.0, eta_0=0.0):
     """ Convert between the sky-plane and the (equatorial) ring plane 
 
-    Parameters:
-        ksi (int, float): Ksi
-        eta (int, float): Eta
-        ksi_0 (int, float): Central ksi value, default=0.0
-        eta_0 (int, float): Central eta value, default=0.0
+    Parameters
+    ----------
+        ksi : `int, float`
+            Ksi position of the ring detection in the sky plane
+        eta : `int, float`
+            Eta position of the ring detection in the sky plane
+        ksi_0 : `int, float`
+            Central ksi value, default=0.0
+        eta_0  : `int, float`
+            Central eta value, default=0.0
 
     Returns:
-        xp (float): X Position in the ring plane
-        yp (float): Y Position in the ring plane            
+        xp : `float` 
+            X Position in the ring plane
+        yp : `float` 
+            Y Position in the ring plane            
     """
     delta_ksi = ksi - ksi_0
     delta_eta = eta - eta_0
@@ -48,15 +57,22 @@ def to_ring_plane(self, ksi, eta, ksi_0=0.0, eta_0=0.0):
 def to_sky_plane(self, xp, yp, ksi_0=0.0, eta_0=0.0):
     """ Convert between the sky-plane and the (equatorial) ring plane 
 
-    Parameters:
-        xp (int, float): X Position in the ring plane
-        yp (int, float): Y Position in the ring plane
-        ksi_0 (int, float): Central ksi value, default=0.0
-        eta_0 (int, float): Central eta value, default=0.0
+    Parameters
+    ----------
+        xp : `int, float`
+            X Position in the ring plane
+        yp : `int, float`
+            Y Position in the ring plane
+        ksi_0 : `int, float`
+            Central ksi value, default=0.0
+        eta_0 : `int, float`
+            Central eta value, default=0.0
 
     Returns:
-        ksi (float): Ksi
-        eta (float): Eta            
+        ksi : `float`
+            Ksi position of the ring detection in the sky plane
+        eta : `float`  
+            Eta position of the ring detection in the sky plane             
     """
     x = (self.__coef_polo[3]*xp - self.__coef_polo[1]*yp)/(self.__coef_polo[0]*self.__coef_polo[3] - 
                                                            self.__coef_polo[2]*self.__coef_polo[1])
@@ -73,11 +89,17 @@ def to_sky_plane(self, xp, yp, ksi_0=0.0, eta_0=0.0):
 def calc_longitude(self, ksi, eta, ksi_0=0.0, eta_0=0.0):
     """ Calculate the True longitude in the J2000 reference frame 
 
-    Parameters:
-        ksi (int, float): Ksi
-        eta (int, float): Eta
-        ksi_0 (int, float): Central ksi value, default=0.0
-        eta_0 (int, float): Central eta value, default=0.0
+    Parameters
+    ----------
+        ksi : `int, float`
+            Ksi position of the ring detection in the sky plane
+        eta : `int, float`
+            Eta position of the ring detection in the sky plane
+        ksi_0 : `int, float`
+            Central ksi value, default=0.0
+        eta_0  : `int, float`
+            Central eta value, default=0.0
+
 
     Returns:
         along (float): True longitude in the J2000 reference frame, in degrees
@@ -95,13 +117,20 @@ def calc_longitude(self, ksi, eta, ksi_0=0.0, eta_0=0.0):
 def calc_equatorial_vel(self, ksi, eta, vel_ksi, vel_eta, ksi_0=0.0, eta_0=0.0):
     """ Calculate the radial velocity in the equatorial (ring) plane
 
-    Parameters:
-        ksi (int, float): Ksi
-        eta (int, float): Eta
-        vel_ksi (int, float): Velocity Ksi
-        vel_eta (int, float): Velocity Eta
-        ksi_0 (int, float): Central ksi value, default=0.0
-        eta_0 (int, float): Central eta value, default=0.0
+    Parameters
+    ----------
+        ksi : `int, float`
+            Ksi
+        eta : `int, float`
+            Eta
+        vel_ksi : `int, float`
+            Velocity Ksi
+        vel_eta : `int, float`
+            Velocity Eta
+        ksi_0 : `int, float`
+            Central ksi value, default=0.0
+        eta_0 : `int, float`
+            Central eta value, default=0.0
 
     Returns:
         v_rp (float): Radial velocity in the equatorial (ring) plane, in km/s
