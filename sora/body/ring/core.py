@@ -3,6 +3,7 @@ from sora.body.meta import PhysicalData
 from sora.body import Body
 from sora.ephem.meta import BaseEphem
 from astropy.coordinates import SkyCoord
+from astropy.time import Time
 from .meta import BaseRing
 import astropy.units as u
 import numpy as np
@@ -10,32 +11,63 @@ import warnings
 
 class Ring(BaseRing):    
     def __init__(self, ephem, **kwargs):
-        """ 
+        """ Class that contains and manages the information of a ring.
+
         Parameters:
-        'ring_id',
-        'radius', 
-        'radius_err',
-        'eccentricity', 
-        'eccentricity_err',
-        'earth_pole_coord',
-        'pole_orientation',
-        'normal_opacity_err',
-        'normal_optical_depth', 
-        'normal_optical_depth_err',
-        'radial_width', 
-        'radial_width_err',
-        'equivalent_depth', 
-        'equivalent_depth_err',
-        'equivalent_width', 
-        'equivalent_width_err'
-	
-                              
+            ring_id : `str`, required 
+                Identifier of the ring. 
+
+            radius :  `float`, `int`, `astropy.quantity.Quantity`, required
+                Mean radial distance of the ring from the central body, in km.
+
+            radius_err : `float`, `int`
+                Uncertainty associated with the ring radius.
+
+            eccentricity : `float`
+                Orbital eccentricity of the ring.
+
+            eccentricity_err : `float`
+                Uncertainty associated with the eccentricity.
+
+            pole_orientation : `str`, `astropy.coordinates.SkyCoord`
+                The Pole coordinates of the ring. It can be a `SkyCoord object` or a
+                string in the format ``'hh mm ss.ss +dd mm ss.ss'``.
+               
+            normal_opacity : `float`, `int`
+                Normal opacity of the ring, the opacity corrected for the ring opening angle.
+                           
+            normal_opacity_err : `float`, `int`
+                Uncertainty associated with the normal opacity.
+
+            normal_optical_depth : `float`, `int`
+                Normal optical depth of the ring, the optical depth corrected for the ring opening angle.
+
+            normal_optical_depth_err : `float`, `int`
+                Uncertainty associated with the normal optical depth.
+
+            radial_width : `float`, `int`, `astropy.quantity.Quantity`
+                Radial width of the ring, in kilometers.
+
+            radial_width_err (float): 
+                Uncertainty in the measured radial width, in kilometers.
+
+            equivalent_depth : `float`, `int`, `astropy.quantity.Quantity` 
+                Equivalent depth of the ring, defined as the integral of the normal optical depth over the ring radial width, in kilometers.
+
+            equivalent_depth_err : `float`, `int`, `astropy.quantity.Quantity` 
+                Uncertainty in the equivalent depth, in kilometers.
+
+            equivalent_width : `float`, `int`, `astropy.quantity.Quantity` 
+                Equivalent width of the ring, defined as the integral of the normal optical depth across the radial profile, in kilometers.
+
+            equivalent_width_err : `float`, `int`, `astropy.quantity.Quantity` 
+                Uncertainty in the equivalent width, in kilometers.
+
         """
         
         allowed_kwargs = ['ring_id',
                           'radius', 'radius_err',
                           'eccentricity', 'eccentricity_err',
-                          'earth_pole_coord',
                           'pole_orientation',
                           'normal_opacity', 'normal_opacity_err',
                           'normal_optical_depth', 'normal_optical_depth_err',
@@ -46,11 +78,7 @@ class Ring(BaseRing):
             
         input_tests.check_kwargs(kwargs, allowed_kwargs=allowed_kwargs)
 
-        earth_pole_coord = kwargs.get('earth_pole_coord', '12 00 00.00000 +90 00 00.00000')
-        earth_pole = SkyCoord(earth_pole_coord, unit=(u.hourangle, u.deg))
-
-        self.ephem = ephem
-        
+        self.ephem = ephem        
         self.ring_id = kwargs.get('ring_id')      
         
         if not 'pole_orientation' in kwargs:
@@ -73,6 +101,7 @@ class Ring(BaseRing):
         self._normal_optical_depth = PhysicalData('Normal optical depth', 
                                                   kwargs.get('normal_optical_depth', None), 
                                                   kwargs.get('normal_optical_depth_err', 0.0), unit=u.km)
+        
         self._radial_width = PhysicalData('Radial width', 
                                           kwargs.get('radial_width', None), 
                                           kwargs.get('radial_width_err', 0.0), unit=u.km)
@@ -91,6 +120,25 @@ class Ring(BaseRing):
         
 
     def get_ring_orientation(self, time, observer='geocenter'):
+        """
+        Computes the ring's position and opening angles as seen by a given observer at a specified time.
+
+        Parameters
+        ----------
+        time : `str`, `astropy.time.Time`
+            Reference time to calculate the position. It can be a string
+            in the ISO format (yyyy-mm-dd hh:mm:ss.s) or an astropy Time object.
+
+        observer : `str`, `sora.Observer`, `sora.Spacecraft`
+            IAU code of the observer (must be present in given list of kernels),
+            a SORA observer object or a string: ['geocenter', 'barycenter']
+
+        Returns:
+            tuple : astropy.units.Quantity, astropy.units.Quantity
+                Ring position angle and opening angle, both in degrees.
+        """
+
+        time = Time(time)
         pos = self.ephem.get_position(time, observer=observer)
         ring_position_angle = pos.position_angle(self._pole_orientation).rad*u.rad
         ring_opening_angle = np.arcsin(-(np.sin(self._pole_orientation.dec)*np.sin(pos.dec) + 
@@ -100,6 +148,10 @@ class Ring(BaseRing):
         return ring_position_angle.to('deg'), ring_opening_angle.to('deg')
         
     def __str__(self):
+
+        """ String representation of the Ring class
+        """
+
         out = []
         out.append('Pole orientation (ICRS):\n    RA: {:.2f}\n    DEC: {:.2f}\n'.format(self._pole_orientation.icrs.ra,
                                                                                         self._pole_orientation.icrs.dec)
@@ -107,7 +159,7 @@ class Ring(BaseRing):
         #out.append('Pole orientation (Barycentric Mean Ecliptic):\n    lat: {:.4f}\n    lon: {:.4f}\n'.format(self.pole_orientation.barycentricmeanecliptic.lat,
         #                                                                                  self.pole_orientation.barycentricmeanecliptic.lon)
         #          )
-
+        
         out.append(self._radius.__str__())        
         out.append(self._normal_opacity.__str__())
         out.append(self._normal_optical_depth.__str__())
