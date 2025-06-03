@@ -306,6 +306,9 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
     arrow : `bool`
         If True, it plots the arrow with the occultation direction.
 
+    show_inset : `bool`
+        If True, it plots an inset with the sky plane projection.
+
 
     Important
     ---------
@@ -330,7 +333,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
                       'chcolor', 'chord_delta', 'chord_geo', 'countries', 'cpoints', 'cscale', 'dpi', 'ercolor',
                       'error', 'fmt', 'hcolor', 'heights', 'labels', 'lncolor', 'mapsize', 'mapstyle', 'meridians',
                       'nameimg', 'nscale', 'offset', 'outcolor', 'parallels', 'path', 'pscale', 'ptcolor',
-                      'resolution', 'ring', 'rings', 'rncolor', 'site_name', 'sites', 'sscale', 'states', 'zoom',
+                      'resolution', 'ring', 'rings', 'rncolor', 'show_inset', 'site_name', 'sites', 'sscale', 'states', 'zoom',
                       'site_box_alpha', 'band']
     input_tests.check_kwargs(kwargs, allowed_kwargs=allowed_kwargs)
 
@@ -375,6 +378,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
     erro = kwargs.get('error', None)
     ring = kwargs.get('ring', None)
     rings = kwargs.get('rings', None)
+    show_inset = kwargs.get('show_inset', False)
     atm = kwargs.get('atm', None)
     cpoints = kwargs.get('cpoints', 60)
     states = kwargs.get('states', True)
@@ -661,8 +665,38 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
 
     # plots rings from the Body object
     if rings is not None:
+        from sora.extra import draw_ellipse
+        from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+        # external loop to automatically determine the inset size
+        max_extent = 0
+        for obj_ring in rings:
+            P_tmp, B_tmp = obj_ring.get_ring_orientation(time=Time(data))
+            extent_tmp = obj_ring.radius.value * np.abs(np.sin(B_tmp).value)
+            if extent_tmp > max_extent:
+                max_extent = extent_tmp
+                P_ref, B_ref = P_tmp, B_tmp
+
+
+        P_rad = np.deg2rad(P_ref.value)
+        w = 0.3 + 0.1 * np.abs(np.cos(P_rad))
+        h = 0.3 + 0.1 * np.abs(np.sin(P_rad))
+
+        if show_inset:
+            axin = inset_axes(axf,
+                            width=w*10,
+                            height=h*10,
+                            bbox_to_anchor=(0.18, 0.2, 0.1, 0.1),
+                            bbox_transform=fig.transFigure,
+                            borderpad=0)
+        
+        else:
+            axin = None
+
         ring_proj_radius = np.array([])
 
+        draw_ellipse(equatorial_radius=radius.value, ax=axin)
+        
         for obj_ring in rings:
             P, B = obj_ring.get_ring_orientation(time=Time(data))
 
@@ -699,6 +733,47 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
             j = np.where(lon1 > 1e+30)
             if 'centerproj' not in kwargs:
                 plt.plot(ax3[j].to(u.m).value, by3[j].to(u.m).value, ':', color=rncolor, clip_on=(not centert), zorder=-0.2)
+
+            try:
+                axin.set_xticks([])
+                axin.set_yticks([])
+                axin.annotate(text="N", xy=(0.48,0.9), xycoords='axes fraction', fontsize=14)
+                axin.annotate(text="E", xy=(0.03,0.48), xycoords='axes fraction', fontsize=14)
+
+                draw_ellipse(equatorial_radius=obj_ring.radius.value,
+                            oblateness=1 - abs(np.sin(B).value),
+                            position_angle=P.value, ax=axin)
+                
+                PA_rad = np.radians(occs['posa']) + 90*u.deg  
+                x0, y0 = 0, 0
+                L = ring_proj_radius.max()*2
+
+                dx = L * np.sin(PA_rad)
+                dy = L * np.cos(PA_rad)
+
+                x_vals = [x0 - dx/2, x0 + dx/2]
+                y_vals = [y0 - dy/2, y0 + dy/2]
+
+                axin.plot(x_vals, y_vals, 'r-')
+
+                axin.plot(x_vals, y_vals+ellipse_y.max(), linestyle=':', color='m', linewidth=2)
+                axin.plot(x_vals, y_vals-ellipse_y.max(), linestyle=':', color='m', linewidth=2)
+            except:
+                pass
+        
+        if axin is not None:
+            vec = np.arange(0, int(8000/(np.absolute(occs['vel'].value))), cpoints)
+            deltatime = np.sort(np.concatenate((vec, -vec[1:]), axis=0))*u.s
+
+            axc = (deltatime*occs['vel'])*np.cos(paplus)
+            byc = - (deltatime*occs['vel'])*np.sin(paplus)
+
+            axin.plot(axc.to_value(u.km), byc.to_value(u.km), 'o', color='black', markersize=4)
+            axin.plot(0,0, 'o', color='black', markersize=8)
+
+            axin.set_xlim(ring_proj_radius.max(), -ring_proj_radius.max())
+            axin.set_ylim(-ring_proj_radius.max(), ring_proj_radius.max())
+            axin.set_aspect('equal', adjustable='datalim')            
 
 
     # plots atm
@@ -767,7 +842,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
         if limits is None:
             dx = 1000000*(np.sin(paplus+90*u.deg)*np.sign(occs['vel'])).value
             dy = 1000000*(np.cos(paplus+90*u.deg)*np.sign(occs['vel'])).value
-            plt.annotate('', xy=(5500000+dx, -5500000+dy), xycoords='data',
+            axf.annotate('', xy=(5500000+dx, -5500000+dy), xycoords='data',
                          xytext=(5500000, -5500000), textcoords='data',
                          arrowprops=dict(facecolor='black', shrink=0.05),
                          horizontalalignment='right', verticalalignment='top', annotation_clip=False
@@ -775,7 +850,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
         else:
             dx = (1000000/zoom) * (np.sin(paplus + 90 * u.deg) * np.sign(occs['vel'])).value
             dy = (1000000/zoom) * (np.cos(paplus + 90 * u.deg) * np.sign(occs['vel'])).value
-            plt.annotate('', xy=(lx + (ux-lx)*0.9 + dx, ly + (uy-ly)*0.1 + dy), xycoords='data',
+            axf.annotate('', xy=(lx + (ux-lx)*0.9 + dx, ly + (uy-ly)*0.1 + dy), xycoords='data',
                          xytext=(lx + (ux-lx)*0.9, ly + (uy-ly)*0.1), textcoords='data',
                          arrowprops=dict(facecolor='black', shrink=0.05),
                          horizontalalignment='right', verticalalignment='top', annotation_clip=False
