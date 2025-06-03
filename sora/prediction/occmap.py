@@ -735,15 +735,18 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
                 plt.plot(ax3[j].to(u.m).value, by3[j].to(u.m).value, ':', color=rncolor, clip_on=(not centert), zorder=-0.2)
 
             try:
+                # North and East indications
                 axin.set_xticks([])
                 axin.set_yticks([])
                 axin.annotate(text="N", xy=(0.48,0.9), xycoords='axes fraction', fontsize=14)
                 axin.annotate(text="E", xy=(0.03,0.48), xycoords='axes fraction', fontsize=14)
 
+                # Plotting the associated rings
                 draw_ellipse(equatorial_radius=obj_ring.radius.value,
                             oblateness=1 - abs(np.sin(B).value),
                             position_angle=P.value, ax=axin)
                 
+                # Central line
                 PA_rad = np.radians(occs['posa']) + 90*u.deg  
                 x0, y0 = 0, 0
                 L = ring_proj_radius.max()*2
@@ -762,6 +765,7 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
                 pass
         
         if axin is not None:
+            # Black dots
             vec = np.arange(0, int(8000/(np.absolute(occs['vel'].value))), cpoints)
             deltatime = np.sort(np.concatenate((vec, -vec[1:]), axis=0))*u.s
 
@@ -771,6 +775,22 @@ def plot_occ_map(name, radius, coord, time, ca, pa, vel, dist, mag=0, longi=0, *
             axin.plot(axc.to_value(u.km), byc.to_value(u.km), 'o', color='black', markersize=4)
             axin.plot(0,0, 'o', color='black', markersize=8)
 
+            # Direction arrow
+            dx = np.sin(PA_rad) * np.sign(occs['vel'].value)
+            dy = np.cos(PA_rad) * np.sign(occs['vel'].value)
+
+            arrow_size = 0.4 * ring_proj_radius.max()
+
+            x0, y0 = -ring_proj_radius.max() * 0.7, -ring_proj_radius.max() * 0.7
+
+            x1 = x0 + dx * arrow_size
+            y1 = y0 + dy * arrow_size
+
+            axin.annotate('', xy=(x1, y1), xytext=(x0, y0),
+                          arrowprops=dict(facecolor='black', arrowstyle='->', lw=1.5),
+                          annotation_clip=False)
+
+            # Axis limits
             axin.set_xlim(ring_proj_radius.max(), -ring_proj_radius.max())
             axin.set_ylim(-ring_proj_radius.max(), ring_proj_radius.max())
             axin.set_aspect('equal', adjustable='datalim')            
