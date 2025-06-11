@@ -106,7 +106,7 @@ class Occultation:
             rings = self.body.rings.values()
 
         meta = {
-            'name': self.body.name, 'radius': self.body.radius.to(u.km).value,
+            'name': self.body.shortname, 'radius': self.body.radius.to(u.km).value,
             'error_ra': self.body.ephem.error_ra.to(u.mas).value, 'error_dec': self.body.ephem.error_dec.to(u.mas).value}
         self.predict = PredictionTable(
             time=[tca], coord_star=[self.star.get_position(tca, observer=reference_center)],

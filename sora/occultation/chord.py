@@ -190,8 +190,8 @@ class Chord:
             pos_ephem = ephem.get_position(time=time + 0.1 * u.s, observer=self.observer)
             _, nf, ng, = - pos_ephem.transform_to(SkyOffsetFrame(origin=pos_star)).cartesian.xyz.to(u.km).value
 
-        return f, g, (nf-f)/0.1, (ng-g)/0.1
-
+        return f, g, (nf-f)/0.1, (ng-g)/0.1    
+    
     def path(self, *, segment='standard', step=1):
         """Returns the on-sky path of this chord.
 
