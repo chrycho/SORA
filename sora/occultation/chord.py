@@ -2,9 +2,10 @@ import warnings
 
 import astropy.units as u
 import numpy as np
-from astropy.coordinates import SkyOffsetFrame
+from astropy.coordinates import SkyOffsetFrame, SkyCoord
 from astropy.time import Time
 from .utils import add_arrow
+from sora.body.ring.utils import *
 
 __all__ = ['Chord']
 
@@ -167,30 +168,51 @@ class Chord:
             warnings.warn('The difference between a given time and the closest approach instant is {:.2f} days. '
                           'This position could not have a physical meaning.'.format(tca_diff.max()))
 
-        if self._method == 'geocenter' and not isinstance(self.observer, Spacecraft):
-            ksio1, etao1 = self.observer.get_ksi_eta(time=time, star=coord)
-            ksie1, etae1 = ephem.get_ksi_eta(time=time, star=coord)
-            f = ksio1 - ksie1
-            g = etao1 - etae1
-        else:
-            pos_star = star.get_position(time=time, observer=self.observer)
-            pos_ephem = ephem.get_position(time=time, observer=self.observer)
-            _, f, g, = - pos_ephem.transform_to(SkyOffsetFrame(origin=pos_star)).cartesian.xyz.to(u.km).value
+        #if self._method == 'geocenter' and not isinstance(self.observer, Spacecraft):
+        #    ksio1, etao1 = self.observer.get_ksi_eta(time=time, star=coord)
+        #    ksie1, etae1 = ephem.get_ksi_eta(time=time, star=coord)
+        #    f = ksio1 - ksie1
+        #    g = etao1 - etae1
+        #else:
+        #    pos_star = star.get_position(time=time, observer=self.observer)
+        #    pos_ephem = ephem.get_position(time=time, observer=self.observer)
+        #    _, f, g, = - pos_ephem.transform_to(SkyOffsetFrame(origin=pos_star)).cartesian.xyz.to(u.km).value
+        
+        def compute_fg(t):
+            t = Time(t)
+            if self._method == 'geocenter' and not isinstance(self.observer, Spacecraft):
+                ksio, etao = self.observer.get_ksi_eta(time=t, star=coord)
+                ksie, etae = ephem.get_ksi_eta(time=t, star=coord)
+                return ksio - ksie, etao - etae
+            else:
+                pos_star = star.get_position(time=t, observer=self.observer)
+                pos_ephem = ephem.get_position(time=t, observer=self.observer)
+                _, f, g = -pos_ephem.transform_to(SkyOffsetFrame(origin=pos_star)).cartesian.xyz.to(u.km).value
+                return f, g
+
+        f, g = compute_fg(time)
 
         if not vel:
             return f, g
 
-        if self._method == 'geocenter' and not isinstance(self.observer, Spacecraft):
-            ksio2, etao2 = self.observer.get_ksi_eta(time=time + 0.1 * u.s, star=coord)
-            ksie2, etae2 = ephem.get_ksi_eta(time=time + 0.1 * u.s, star=coord)
-            nf = ksio2 - ksie2
-            ng = etao2 - etae2
-        else:
-            pos_star = star.get_position(time=time + 0.1 * u.s, observer=self.observer)
-            pos_ephem = ephem.get_position(time=time + 0.1 * u.s, observer=self.observer)
-            _, nf, ng, = - pos_ephem.transform_to(SkyOffsetFrame(origin=pos_star)).cartesian.xyz.to(u.km).value
+        #if self._method == 'geocenter' and not isinstance(self.observer, Spacecraft):
+        #    ksio2, etao2 = self.observer.get_ksi_eta(time=time + 0.1 * u.s, star=coord)
+        #    ksie2, etae2 = ephem.get_ksi_eta(time=time + 0.1 * u.s, star=coord)
+        #    nf = ksio2 - ksie2
+        #    ng = etao2 - etae2
+        #else:
+        #    pos_star = star.get_position(time=time + 0.1 * u.s, observer=self.observer)
+        #    pos_ephem = ephem.get_position(time=time + 0.1 * u.s, observer=self.observer)
+        #    _, nf, ng, = - pos_ephem.transform_to(SkyOffsetFrame(origin=pos_star)).cartesian.xyz.to(u.km).value
+        
+        dt = 0.1 * u.s
+        f1, g1 = compute_fg(time - dt)
+        f2, g2 = compute_fg(time + dt)
 
-        return f, g, (nf-f)/0.1, (ng-g)/0.1    
+        vf = (f2 - f1) / (2 * dt.to_value(u.s))
+        vg = (g2 - g1) / (2 * dt.to_value(u.s))
+
+        return f, g, vf, vg
     
     def path(self, *, segment='standard', step=1):
         """Returns the on-sky path of this chord.
