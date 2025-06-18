@@ -35,7 +35,7 @@ class ChordList(List):
         self._star = star
         self._body = body
         self._time = time
-        self._shared_with = {"chord": {"star": self._star, "ephem": self._body.ephem, "time": self._time},
+        self._shared_with = {"chord": {"star": self._star, "ephem": self._body.ephem, "time": self._time, "body" : self._body},
                              'occultation': {}}
         self._method_value = 'geocenter'
 
