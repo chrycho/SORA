@@ -88,7 +88,7 @@ class Observer:
         else:
             raise ValueError('Input parameters could not be determined')
         self.ephem = kwargs.get('ephem', 'horizons')
-
+        
     def get_ksi_eta(self, time, star):
         """Calculates relative position to star in the orthographic projection.
 
@@ -119,11 +119,10 @@ class Observer:
         except:
             raise ValueError('star is not an astropy object or a string in the format "hh mm ss.s +dd mm ss.ss"')
 
-        itrs = self.site.get_itrs(obstime=time)
-        gcrs = itrs.transform_to(GCRS(obstime=time))
+        gcrs = self.site.get_gcrs(obstime=time)
         rz = rotation_matrix(star.ra, 'z')
         ry = rotation_matrix(-star.dec, 'y')
-
+        
         cp = gcrs.cartesian.transform(rz).transform(ry)
         return cp.y.to(u.km).value, cp.z.to(u.km).value
 
