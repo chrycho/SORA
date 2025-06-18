@@ -600,6 +600,138 @@ class Chord:
         xy_err = np.array(err) - xy
         return names, xy, xy_err
 
+
+    def get_sky_profile(self, center_f=0, center_g=0):
+        '''
+        Computes the radial distance in the sky plane (f, g) relative to a given center, 
+        and returns it along with the corresponding flux measurements from the light curve.
+
+        If immersion and emersion times are defined, the function restricts the light curve 
+        to out-of-occultation data. Otherwise, the full light curve is used.
+
+        Parameters
+        ----------
+        center_f : float, optional
+            The f-coordinate of the reference center in kilometers. Default is 0.
+        center_g : float, optional
+            The g-coordinate of the reference center in kilometers. Default is 0.
+
+        Returns
+        -------
+        r_sky : np.ndarray
+            Signed radial distances (in km) in the (f, g) sky plane relative to the center. 
+            Negative values are assigned before the closest approach (minimum r).
+        flux : np.ndarray
+            Flux values corresponding to the filtered light curve.
+
+        Notes
+        -----
+        The sign of `r_sky` is determined based on the closest approach time (`t_ip`), 
+        making the profile useful for symmetric fitting or center-aligned analysis.
+        '''
+
+        immersion = getattr(self.lightcurve, 'immersion', None)
+        emersion = getattr(self.lightcurve, 'emersion', None)
+        tref = getattr(self.lightcurve, 'tref', None)
+        dflux = getattr(self.lightcurve, 'dflux', None)
+
+        if immersion is not None and emersion is not None and tref is not None:
+            imm = (immersion - tref).sec - self.lightcurve.exptime
+            eme = (emersion - tref).sec + self.lightcurve.exptime
+            mask = (self.lightcurve.time < imm) + (self.lightcurve.time > eme)
+            time = self.lightcurve.time[mask]
+            flux = self.lightcurve.flux[mask]
+        else:
+            time = self.lightcurve.time
+            flux = self.lightcurve.flux
+
+        # Calculating the sky plane distance
+        f, g = self.get_fg(time = time*u.s + Time(self.lightcurve.tref))
+               
+        f_sky = f - center_f
+        g_sky = g - center_g        
+        r_sky = np.sqrt((f_sky)**2 + (g_sky)**2)
+        t_ip = time[r_sky.argmin()]
+        sign = np.ones(len(r_sky))
+        sign[time < t_ip] = -1
+        sign[time > t_ip] = +1 
+        #r_sky = r_sky*sign
+
+        return r_sky, flux, dflux, sign
+
+    def get_ring_profile(self, ring_id, center_f=0, center_g=0):
+        '''
+        Computes the radial distance in the ring plane relative to a given center, 
+        converting sky plane coordinates (f, g) into the ring plane coordinates, and 
+        returns the radial distances along with the corresponding flux measurements 
+        from the light curve.
+
+        Parameters
+        ----------
+        ring_id : str or int
+            Identifier for the ring in the body's ring system.
+        center_f : float, optional
+            The f-coordinate of the reference center in the sky plane. Default is 0.
+        center_g : float, optional
+            The g-coordinate of the reference center in the sky plane. Default is 0.
+
+        Returns
+        -------
+        r_ring : np.ndarray
+            Radial distances in the ring plane relative to the center, in km.
+        flux : np.ndarray
+            Flux values corresponding to the light curve.
+        dflux : np.ndarray
+            Errors associated with the flux measurements.
+        sign : np.ndarray
+            Array with +1 or -1 indicating the temporal side relative to the closest approach time, useful for distinguishing ingress and egress phases.
+
+        Notes
+        -----
+        The function retrieves the ring orientation and calculates projection coefficients to map sky plane coordinates to the ring plane. 
+        The sign array is based on the time of minimum radial distance and can help in phase separation of occultation events.
+        '''
+
+        body = self._shared_with["chordlist"]["body"]
+        time = self._shared_with["chordlist"]["time"]
+        ephem = self._shared_with["chordlist"]["ephem"]
+
+        if not hasattr(body, 'rings'):
+            raise ValueError("This body has no ring attribute.")
+
+        ring = body.get_ring(ring_id)
+        if ring is None:
+            raise ValueError(f"Ring ID '{ring_id}' not found in body.ring.")
+
+        pole_orientation = getattr(ring, 'pole_orientation', None)
+        if pole_orientation is None:
+            raise ValueError(f"Ring '{ring_id}' has no pole orientation.")
+
+        ephem = ephem.get_position(time)
+
+        P, B = ring.get_ring_orientation(time=time)
+
+        earth_pole = SkyCoord('12 00 00.00000 +90 00 00.00000', unit=(u.hourangle, u.deg))
+
+        coef, coef_polo = calc_coef_projecao(ephem, pole_orientation, B, P, earth_pole)
+
+        t = Time(self.lightcurve.tref) + self.lightcurve.time * u.s
+        f, g = self.get_fg(time=t)
+
+        x_ring, y_ring = to_ring_plane(ksi=f, eta=g, coef=coef, coef_polo=coef_polo, ksi_0=center_f, eta_0=center_g)
+        r_ring = np.sqrt(x_ring**2 + y_ring**2)
+
+        flux = self.lightcurve.flux
+        dflux = self.lightcurve.dflux
+        times = self.lightcurve.time
+
+        t_ip = times[r_ring.argmin()]
+        sign = np.ones(len(r_ring))
+        sign[times < t_ip] = -1
+        sign[times > t_ip] = +1
+
+        return r_ring, flux, dflux, sign
+
     def __repr__(self):
         """String representation of the Chord Class
         """
