@@ -522,7 +522,13 @@ class Body(BaseBody):
             delattr(self, ring_id)  
                 
     def list_rings(self):
-        return [str(ring) for ring in self.rings.values()]    
+        return [str(ring) for ring in self.rings.values()] 
+
+    def get_ring(self, ring_id):
+        try:
+            return self.rings[ring_id]
+        except KeyError:
+            raise ValueError(f"Ring ID '{ring_id}' not found for body '{self.name}'.")   
         
     def __str__(self):
         from .values import smass, tholen
