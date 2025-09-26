@@ -7,6 +7,7 @@ from astropy.time import Time
 from sora.config.decorators import deprecated_function, deprecated_alias
 from sora.prediction import occ_params, PredictionTable
 from . import fitting
+from . import report
 
 __all__ = ['Occultation']
 warnings.simplefilter('always', UserWarning)
@@ -920,3 +921,7 @@ class Occultation:
             out.pprint()
             print('\n')
         return out
+
+    def to_report(self, pdf=False, author=None, report_name=None):
+            return report.to_report(self, pdf=pdf, author=author, report_name=report_name)
+    
